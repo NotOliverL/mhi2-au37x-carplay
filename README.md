@@ -9,6 +9,9 @@ CarPlay additions for Audi MHI2 head units on the **`MHI2_ER_AU37x`** train:
   the arrow, the distance, the street and lane guidance, drawn live in 3D.
 - **Cover art** — CarPlay album artwork on the cluster's now-playing widget.
 - **Touchpad → D-pad** — the MMI touchpad navigates CarPlay menus.
+- **Parking sensors keep CarPlay** *(optional)* — the parking-sensor popup opens over
+  CarPlay instead of dropping you into the MMI main menu, without the "Safe to move?"
+  footer; after the reversing camera you are back in CarPlay.
 
 Prebuilt binaries, installed over a network cable or from an M.I.B. SD card.
 
@@ -38,6 +41,10 @@ work there. If another CarPlay mod is installed on the unit, remove it first.
 - **Route guidance** works with Apple Maps and Google Maps. Waze sends no turn-by-turn
   data over CarPlay; its map still shows in the cluster.
 - **D-pad** is self-contained: `bin/dpad_hook.jar` alone in `/mnt/app/eso/hmi/lsd/jars/`.
+- **Parking sensors keep CarPlay** replaces three stock HMI classes and is built for
+  the `lsd` of **`MHI2_ER_AU37x_P5089` only**. On another build it can stop the HMI
+  from starting, so it is never installed unless you ask for it (below). Also
+  self-contained: `bin/pdc_carplay.jar` in `/mnt/app/eso/hmi/lsd/jars/`.
 
 ## Install
 
@@ -69,6 +76,12 @@ Reboot afterwards. Running the installer again upgrades in place.
 | route guidance and the cluster map | `RGI=0 sh install.sh` | `NO_RGI` |
 | only the cluster map | `ALTSCREEN=0 sh install.sh` | `NO_ALTSCREEN` |
 
+| Add (P5089 only) | Cable | SD card (empty file next to `install.sh`) |
+|---|---|---|
+| parking sensors keep CarPlay | `PDC=1 sh install.sh` | `PDC` |
+
+Running the installer again without it takes it out again.
+
 Step by step, and what gets changed on the unit:
 **[Installation](https://github.com/chefranov/mhi2-au37x-carplay/wiki/Installation)**.
 
@@ -81,6 +94,40 @@ Step by step, and what gets changed on the unit:
   `touch /mnt/app/rgd_disable` and reboot; delete the file to turn it back on.
 - **Sport layout** is detected by itself. To force it: `touch /mnt/app/rgd_sport`
   (`SPORT=1` / an empty `SPORT` file at install time).
+
+### Tip: cluster map without CarPlay's own turn card
+
+The phone draws its own maneuver card into the cluster map, next to the cluster's
+route-guidance tile. What the phone draws there is chosen by the car, through the URL
+the cluster map asks for: the default `maps:/car/instrumentcluster` means map + turn
+card, and `…/map` means the map alone. To ask for the map alone:
+
+```sh
+mount -uw /mnt/app
+echo 'maps:/car/instrumentcluster/map' > /mnt/app/altscreen_url
+```
+
+It is read when the phone connects, so replug the phone or reboot. To go back:
+`rm /mnt/app/altscreen_url`. The route-guidance tile is not affected. The phone has the
+last word on what it draws, so the card can still show on some iOS or app versions.
+
+### Tip: no map reload when switching cluster views
+
+By default the phone knows three view areas (wide, Sport, Classic big dials) and is
+told to switch between them when you change the cluster view. The phone then lays its
+map out again, which looks like a reload. With only one view area there is nothing to
+switch, so the map stays put:
+
+```sh
+mount -uw /mnt/app
+echo '0 0 1440 540 520 100 400 300' > /mnt/app/altscreen_areas
+```
+
+The line is `x y w h` of the view area followed by `x y w h` of its safe area (where
+the phone keeps the map's position and route info). The one above uses the Classic
+big-dials safe area. For other layouts, use `360 100 720 280` (wide) or
+`110 100 380 300` (Sport) as the last four numbers. It is read when the phone connects,
+so replug the phone or reboot. To go back: `rm /mnt/app/altscreen_areas`.
 
 Something not right: **[Troubleshooting](https://github.com/chefranov/mhi2-au37x-carplay/wiki/Troubleshooting)**.
 

@@ -20,10 +20,13 @@
 #      renderer's compiled shaders and supervisor, and the marker that turns
 #      it on.  Needs route guidance; skip it alone with ALTSCREEN=0.
 #   7. Removes the pre-drawn maneuver frames, if an older install left them.
-#   8. Undoes a part left out this time (RGI=0, ALTSCREEN=0) that an earlier
-#      install put there, and drops files earlier releases used and this one
-#      does not.
-#   9. Tells you to reboot.
+#   8. Optional, only with PDC=1: installs the jar that keeps CarPlay on screen
+#      when the parking sensors come on.  It replaces stock HMI classes and is
+#      built for one exact lsd (P5089), so it is never installed by default.
+#   9. Undoes a part left out this time (RGI=0, ALTSCREEN=0, no PDC=1) that an
+#      earlier install put there, and drops files earlier releases used and
+#      this one does not.
+#  10. Tells you to reboot.
 #
 # Everything is idempotent: running it twice changes nothing the second time.
 # POSIX sh only - no bashisms, and none of sed, awk or dirname: the unit
@@ -63,6 +66,13 @@ ALT_SUP=$LIB_DIR/altscreen_sup.sh
 ALT_SHADER_DIR=$LIB_DIR/altscreen_shaders
 ALT_SHADERS="main.vert video.frag intro.frag"
 ALT_ON=/mnt/app/altscreen_inject
+
+# Parking sensors keep CarPlay (PDC).  Opt-in: the jar replaces three stock HMI
+# classes and calls compiler-generated accessors whose numbering belongs to one
+# lsd build, MHI2_ER_AU37x_P5089.  On any other lsd it can stop the HMI from
+# starting, so it only goes in when asked for with PDC=1.
+PDC=${PDC:-0}
+PDC_JAR=$JARS_DIR/pdc_carplay.jar
 
 # Force the sport cluster layout (1) or the classic one (0). Unset means "leave
 # whatever is already there", which is what an upgrade wants.
@@ -125,6 +135,13 @@ if [ "$RGI" != "0" ]; then
     fi
 else
     say "route guidance: SKIPPED (RGI=0)"
+fi
+
+if [ "$PDC" = "1" ]; then
+    [ -f "$BIN_DIR/pdc_carplay.jar" ] || die "missing payload file: $BIN_DIR/pdc_carplay.jar (or leave PDC unset)"
+    say "parking sensors keep CarPlay: ON (built for MHI2_ER_AU37x_P5089 only)"
+else
+    say "parking sensors keep CarPlay: not installed (PDC=1 adds it)"
 fi
 
 # ---------------------------------------------------------------- unit check
@@ -451,6 +468,21 @@ else
     fi
 fi
 
+# ---------------------------------------------------------------- PDC
+# A jar in the jars directory shadows the stock class of the same name in
+# lsd.jxe, so installing is a copy and undoing it is a delete.
+if [ "$PDC" = "1" ]; then
+    say ""
+    say "--- parking sensors keep CarPlay ---"
+    cp "$BIN_DIR/pdc_carplay.jar" "$PDC_JAR" || die "copy pdc_carplay.jar failed"
+    chmod 755 "$PDC_JAR"
+    say "ok: $PDC_JAR"
+elif [ -f "$PDC_JAR" ]; then
+    say ""
+    say "--- parking sensors keep CarPlay: removing an earlier install (no PDC=1) ---"
+    rm -f "$PDC_JAR" && say "removed: $PDC_JAR" || say "!! could not remove $PDC_JAR"
+fi
+
 # ---------------------------------------------------------------- RGI=0
 # Route guidance left out of an install that had it: undo it the way
 # uninstall.sh does - the shim first, so that mm-ipod starts stock even if
@@ -492,6 +524,9 @@ fi
 if [ "$ALTSCREEN" != "0" ]; then
     ls -l "$ALT_RENDER" "$ALT_SUP" "$ALT_SHADER_DIR" 2>&1 | while IFS= read -r l; do say "$l"; done
 fi
+if [ "$PDC" = "1" ]; then
+    ls -l "$PDC_JAR" 2>&1 | while IFS= read -r l; do say "$l"; done
+fi
 
 say ""
 say "--- flushing writes ---"
@@ -520,6 +555,12 @@ if [ "$ALTSCREEN" != "0" ]; then
     say "The CarPlay map is in the cluster in place of the stock one.  A long"
     say "press of the left steering-wheel roller swaps it for the stock map and"
     say "back; the choice is kept."
+fi
+if [ "$PDC" = "1" ]; then
+    say ""
+    say "The parking sensors no longer throw CarPlay out: their popup opens over"
+    say "it.  The reversing camera still takes the screen and hands it back to"
+    say "CarPlay when it closes."
 fi
 say ""
 say "This log: $LOG"

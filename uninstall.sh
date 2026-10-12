@@ -148,6 +148,11 @@ for f in "$JARS_DIR/coverart_hook.jar" "$JARS_DIR/dpad_hook.jar" "$SO_DEST"; do
         say "not present: $f"
     fi
 done
+# Parking sensors keep CarPlay - optional (PDC=1), so silent when absent.
+if [ -f "$JARS_DIR/pdc_carplay.jar" ]; then
+    rm -f "$JARS_DIR/pdc_carplay.jar" && say "removed: $JARS_DIR/pdc_carplay.jar" \
+        || say "!! could not remove $JARS_DIR/pdc_carplay.jar"
+fi
 
 say ""
 say "--- flushing writes ---"

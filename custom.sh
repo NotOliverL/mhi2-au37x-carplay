@@ -19,8 +19,9 @@
 # "The sport cluster layout".
 # To install everything except route guidance, put an empty file named NO_RGI
 # on the card beside install.sh; to leave out only the CarPlay map in the
-# cluster, one named NO_ALTSCREEN.  There is no way to pass an environment
-# variable through the M.I.B. menu, and the files combine.
+# cluster, one named NO_ALTSCREEN.  To add the optional "parking sensors keep
+# CarPlay" jar (MHI2_ER_AU37x_P5089 only), one named PDC.  There is no way to
+# pass an environment variable through the M.I.B. menu, and the files combine.
 
 set -u
 
@@ -70,6 +71,7 @@ else
     R=1
     S=
     A=1
+    P=0
     if [ -f "$PAYLOAD/NO_RGI" ]; then
         echo "NO_RGI marker present - installing without route guidance"
         R=0
@@ -82,7 +84,11 @@ else
         echo "NO_ALTSCREEN marker present - installing without the CarPlay map in the cluster"
         A=0
     fi
-    SRC_DIR="$PAYLOAD" RGI=$R SPORT=$S ALTSCREEN=$A sh "$PAYLOAD/install.sh"
+    if [ -f "$PAYLOAD/PDC" ]; then
+        echo "PDC marker present - adding parking sensors keep CarPlay"
+        P=1
+    fi
+    SRC_DIR="$PAYLOAD" RGI=$R SPORT=$S ALTSCREEN=$A PDC=$P sh "$PAYLOAD/install.sh"
 fi
 
 echo ""
